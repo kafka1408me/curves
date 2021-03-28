@@ -2,7 +2,6 @@
 #include <ctime>
 #include <algorithm>
 #include <vector>
-#include <numeric>   // std::accumulate
 #include <../omp.h>  // для вызова функций OpenMP; расположение этого заголовка, по крайней мере, у меня такое
 #include <iomanip>   // для использования манипулятора std::setw
 #include "curve.h"
@@ -35,36 +34,6 @@ struct LessRadius
     }
 };
 
-// Функтор для суммирования значения и радиуса кривой
-struct SumRadius
-{
-    DigitalType operator()(DigitalType k, SmartPtrCurve curve)
-    {
-        return (k + curve->getRadius());
-    }
-};
-
-/*
-// Функция для нахождия для радиан эквивалентного значения из диапазона [0; 2PI)
-double getNormRad(double rad)
-{
-    if(rad >=0 && rad < 2*M_PI)
-    {
-        return rad;
-    }
-
-    int q = int(rad / (2*M_PI));
-
-    if(q < 0)
-    {
-        --q;
-    }
-
-    rad = rad - q*(2*M_PI);
-    return rad;
-}
-*/
-
 // Функция, генерирующая случайное действительное число от min до max
 double random(double min, double max)
 {
@@ -79,6 +48,7 @@ double myRandomDouble()
 
 int main()
 {
+
     // Если размеры контейнера невалидные, программа не скомпилируется
     static_assert (sizeContMax > sizeContMin && sizeContMin > 0, "the maximum size must be greater than the minimum size");
 
@@ -171,52 +141,24 @@ int main()
 
     const int countCircles = contCircles.size();  // Количество окружностей
 
-    // Количество потоков (вынесено в последовательную область, поскольку OpenMP
-    // по умолчанию запустит именно такое количество потоков)
-    const int numThreads = omp_get_max_threads();
+    DigitalType sumRadius = 0;
 
-    // Если количество окружностей не делится нацело на количество потоков,
-    // оставшиеся для обработки алгоритмом суммирования элементы будут распределены между
-    // первыми (countCircles % numThreads) потоками - по одному доп. элементу для этих потоков
-    const int ost = countCircles % numThreads;
-    int blockSize = countCircles / numThreads;
-
-    vector<DigitalType> sum(numThreads, DigitalType(0));  // Вектор, куда каждый поток запишет результат суммирования своего блока
-    auto itLeft = contCircles.begin();   // Левый итератор диапазона суммирования
-    auto itRight = contCircles.begin();  // Правый итератор диапазона суммирования
-                                         // (итератор на следующий элемент справа от диапазона)
-
-// Параллельная область START >>>
-#pragma omp parallel firstprivate(blockSize, itLeft, itRight)
+// Параллельный цикл START >>>
+#pragma omp parallel for schedule(static) reduction(+: sumRadius)
+    for(int i = 0; i < countCircles; ++i)
     {
-        int threadId = omp_get_thread_num();  // Индекс потока
-        int left = blockSize*threadId;        // Номер левого элемента диапазона суммирования
-
-        if(ost) // см. комментарий к определению переменной ost
-        {
-            if(threadId < ost)
-            {
-                left += threadId;
-                ++blockSize;
-            }
-            else
-            {
-                left += ost;
-            }
-        }
-
-        int right = left + blockSize; // Номер правого элемента диапазона суммирования
-
-        advance(itLeft, left);    // Перемещаем левый итератор диапазона суммирования
-        advance(itRight, right);  // Перемещаем правый итератор диапазона суммирования
-        sum[threadId] = accumulate(itLeft, itRight, DigitalType(0), SumRadius());
+        sumRadius += contCircles[i]->getRadius();
     }
-// Параллельная область FINISH <<<
+// Параллельный цикл FINISH <<<
 
-    // Уже в последовательной области суммируем значения, полученные всеми потоками, суммировавшими блоки
-    DigitalType totalRadius = accumulate(sum.begin(), sum.end(), DigitalType(0));
-
-    cout << "sum of radii = " << totalRadius << '\n';
+    cout << "sum of radii = " << sumRadius << '\n';
 
     return 0;
 }
+
+
+
+
+
+
+
