@@ -12,7 +12,7 @@ ICurve::~ICurve()
 {
 }
 
-void printPointAndDerivativeByParameter(SmartPtrCurve curve, DigitalType t)
+void printPointAndDerivativeByParameter(const SmartPtrCurve& curve, DigitalType t)
 {
     auto point = curve->getPointByParameter(t);
     auto derivative = curve->getDerivativeByParameter(t);

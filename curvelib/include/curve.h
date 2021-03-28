@@ -57,5 +57,5 @@ public:
 
 
 // Функция для печати координат точки и первой производной кривой, исходя из параметра
-void printPointAndDerivativeByParameter(SmartPtrCurve curve, DigitalType t);
+void printPointAndDerivativeByParameter(const SmartPtrCurve& curve, DigitalType t);
 

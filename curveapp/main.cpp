@@ -2,7 +2,6 @@
 #include <ctime>
 #include <algorithm>
 #include <vector>
-#include <../omp.h>  // для вызова функций OpenMP; расположение этого заголовка, по крайней мере, у меня такое
 #include <iomanip>   // для использования манипулятора std::setw
 #include "curve.h"
 
@@ -14,21 +13,14 @@ constexpr int sizeContMax = 100; // Максимальное количеств�
 constexpr double randDoubleMin = 0.0001;  // Минимальное значение параметра кривой (радиус, шаг спирали и т.п.)
 constexpr double randDoubleMax = 100.0;   // Максимальное значение параметра кривой (радиус, шаг спирали и т.п.)
 
-using CurvesContainer = std::vector<SmartPtrCurve>;  // Тип контейнера, содержащего кривые
+using CurvesContainer  = vector<SmartPtrCurve>;  // Тип контейнера, содержащего кривые
+using CirclesContainer = vector<ICurve*>;
 
-// Функтор, определяющий, является ли кривая окружностью
-struct IsCircle
-{
-    double operator()(SmartPtrCurve curve) const
-    {
-        return (curve->getCurveType() == ICurve::CurveType::CircleCurve);
-    }
-};
 
 // Функтор для сравнения радиусов кривых
 struct LessRadius
 {
-    bool operator()(SmartPtrCurve left, SmartPtrCurve right)
+    bool operator()(const ICurve* left, const ICurve* right) const
     {
         return left->getRadius() < right->getRadius();
     }
@@ -73,6 +65,8 @@ int main()
     // Получение размера контейнера с кривыми
     const int sizeCont = myRandomContSize();
 
+    int countCircles = 0;  // Количество окружностей
+
     CurvesContainer cont1;    // Контейнер с кривыми
     cont1.reserve(sizeCont);  // Резервируем память для элементов
 
@@ -91,6 +85,7 @@ int main()
             {
                 DigitalType radius = myRandomDouble();
                 smrtPtrCurve = FabricCurve::createCircle(radius);
+                ++countCircles;  // Увеличиваем счетчик созданных окружностей
                 break;
             }
             case ICurve::EllipseCurve:
@@ -122,23 +117,34 @@ int main()
     }
 
     // Вывод координат точки и вектора первой производной для параметра t = PI / 4
-    for(auto&& curve: cont1)
+    for(const auto& curve: cont1)
     {
         printPointAndDerivativeByParameter(curve, M_PI_4);
         cout << "--------------------\n";
     }
 
-    CurvesContainer contCircles;    // Контейнер, который будет содержать окружности
-    contCircles.reserve(sizeCont);  // Резервируем максимально возможное место для окружностей
-
-    // Копируем только указатели на окружности
-    copy_if(cont1.begin(), cont1.end(), back_inserter(contCircles), IsCircle());
-
     // Если окружностей среди кривых нет, программа завершается
-    if(contCircles.empty())
+    if(!countCircles)
     {
         cout << "No circles\n";
         return 0;
+    }
+
+    CirclesContainer contCircles;       // Контейнер, который будет содержать окружности
+    contCircles.reserve(countCircles);  // Резервируем место для окружностей
+
+    int contCircleSize = 0;
+    for(auto it = cont1.cbegin(); ; ++it)
+    {
+        ICurve* ptrCurve = it->get();
+        if(ptrCurve->getCurveType() == ICurve::CurveType::CircleCurve)
+        {
+            contCircles.push_back(ptrCurve);
+            if(++contCircleSize == countCircles)
+            {
+                break;
+            }
+        }
     }
 
     // Сортировка окружностей в порядке увеличения радиуса
@@ -147,8 +153,6 @@ int main()
     // Вывод отсортированного контейнера окружностей
 
     cout << "Sorted circles:\n";
-
-    const int countCircles = contCircles.size();  // Количество окружностей
 
     for(int i = 0; i < countCircles; ++i)
     {
