@@ -35,27 +35,43 @@ struct LessRadius
 };
 
 // Функция, генерирующая случайное действительное число от min до max
-double random(double min, double max)
+//double random(double min, double max)
+//{
+//    return (double)(rand())/RAND_MAX*(max - min) + min;
+//}
+
+
+constexpr double getRandCoef(const double min, const double max)
 {
-    return (double)(rand())/RAND_MAX*(max - min) + min;
+    return (max - min) / double(RAND_MAX);
 }
+
+// Фнукции генерации случайных значений теперь используют коэффициенты, получаемые во время компиляции
+constexpr auto myRandDoubleCoef = getRandCoef(randDoubleMin, randDoubleMax);
+constexpr auto myRandSizeCoef   = getRandCoef(sizeContMin, sizeContMax);
 
 // Функция для получения значений параметров кривых
 double myRandomDouble()
 {
-    return random(randDoubleMin, randDoubleMax);
+    return rand() * myRandDoubleCoef + randDoubleMin;
 }
+
+// Функция для получения размера контейнера с кривыми
+int myRandomContSize()
+{
+    return rand() * myRandSizeCoef + sizeContMin;
+}
+
 
 int main()
 {
-
     // Если размеры контейнера невалидные, программа не скомпилируется
     static_assert (sizeContMax > sizeContMin && sizeContMin > 0, "the maximum size must be greater than the minimum size");
 
     // Текущее время будет использоваться в качестве отправной точки для генерации случайных чисел
     srand(time(nullptr));
     // Получение размера контейнера с кривыми
-    const int sizeCont = random(sizeContMin, sizeContMax);
+    const int sizeCont = myRandomContSize();
 
     CurvesContainer cont1;    // Контейнер с кривыми
     cont1.reserve(sizeCont);  // Резервируем память для элементов
@@ -86,7 +102,7 @@ int main()
             }
             case ICurve::Helix3DCurve:
             {
-                DigitalType radius = myRandomDouble();
+                DigitalType radius   = myRandomDouble();
                 DigitalType sizeStep = myRandomDouble();
                 smrtPtrCurve = FabricCurve::createHelix3D(radius, sizeStep);
                 break;
@@ -131,15 +147,15 @@ int main()
     // Вывод отсортированного контейнера окружностей
 
     cout << "Sorted circles:\n";
-    int i = 0;
-    for(auto&& circle: contCircles)
-    {
-        cout << setw(2) << i++ << ": ";
-        circle->printDescriptionCurve();
-    }
-    cout << '\n';
 
     const int countCircles = contCircles.size();  // Количество окружностей
+
+    for(int i = 0; i < countCircles; ++i)
+    {
+        cout << setw(2) << i << ": ";
+        contCircles[i]->printDescriptionCurve();
+    }
+    cout << '\n';
 
     DigitalType sumRadius = 0;
 
@@ -155,10 +171,5 @@ int main()
 
     return 0;
 }
-
-
-
-
-
 
 
